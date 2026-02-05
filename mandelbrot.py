@@ -1,1 +1,1 @@
-def f(x):     return 1pass"hej"
+def f(x):     return 1pass"hejj"
