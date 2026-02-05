@@ -1,1 +1,1 @@
-"""Mandelbrot Set GeneratorAuthor: [Your Name]Course: Numerical Scientific Computing 2026 """def f(x): """Example function.Parameters ---------- x : floatInput valueReturns ------- floatOutput value """# TODO: Implement the algorithmpass
+def f(x):     return 1pass
