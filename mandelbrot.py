@@ -1,1 +1,1 @@
-def f(x):     return 1pass"hejj""marcuss"
+import numpy as npimport matplotlib.pyplot as pltdef mandelbrot_point(c, max_iter=100):    z = 0 + 0j  # z_0        for n in range(max_iter):        z = z*z + c                  if abs(z) > 2:            return n         return max_iter  
