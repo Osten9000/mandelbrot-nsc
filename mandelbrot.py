@@ -3,7 +3,10 @@ import matplotlib.pyplot as plt
 import time, statistics
 start = time.time()
 
-def mandelbrot_point(c, max_iter=100):
+
+max_iter=100
+
+def mandelbrot_point(c, max_iter):
     z = 0 + 0j  # z_0
     
     for n in range(max_iter):
@@ -44,13 +47,19 @@ def mandelbrot_set(x_min, x_max, y_min, y_max, width, height):
 
     C= X + 1j*Y
     
-    iterations = np.zeros((height, width), dtype=int)
+    Z = np.zeros_like(C)  
+    M = np.zeros((height, width), dtype=int)  
     
-    for i in range(height):
-        for j in range(width):
-            iterations[i, j] = mandelbrot_point(C[i, j])
-            
-    return iterations
+    for n in range(max_iter):
+        # Boolean mask: points that haven't escaped yet
+        mask = np.abs(Z) <= 2
+        
+        # Update only unescaped points
+        Z[mask] = Z[mask]**2 + C[mask]
+        
+        # Increment iteration count for unescaped points
+        M[mask] += 1
+    return M
 
 def benchmark(func, *args, n_runs=3):
     """Time func, return median of n_runs."""
@@ -62,7 +71,6 @@ def benchmark(func, *args, n_runs=3):
         median_t = statistics.median(times) 
     print(f"Median: {median_t:.4f}s "f"(min={min(times):.4f}, max={max(times):.4f})") 
     return median_t , result
-
 
 
 x_min, x_max = -2, 1      
