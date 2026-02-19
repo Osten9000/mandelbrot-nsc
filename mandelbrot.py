@@ -79,7 +79,35 @@ y_min, y_max = -1.5, 1.5
 
 width, height = 1024, 1024
 
-benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
+#benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
+
+A = np.random.rand(10000, 10000)
+
+
+def row_sum(A):
+    N= A.shape[0]
+    
+    for i in range(N):
+        s = np.sum(A[i, :])
+
+
+def col_sum(A):
+    N= A.shape[0]
+    
+    for i in range(N):
+        s = np.sum(A[:, i])
+
+benchmark(col_sum, A)
+
+benchmark(row_sum, A)
+
+A_f = np.asfortranarray(A)
+
+benchmark(col_sum, A_f)
+
+benchmark(row_sum, A_f)
+
+
 
 """
 iterations = mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height)
