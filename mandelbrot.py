@@ -77,12 +77,35 @@ x_min, x_max = -2, 1
 
 y_min, y_max = -1.5, 1.5 
 
-width, height = 1024, 1024
+width, height = 256, 256
 
-#benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
+#m, T = benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
+L=[1,2,4,8,16]
 
+bruh=np.zeros(len(L))
+bruh_2=np.zeros(len(L))
+for i in range(len(L)):
+    n=L[i]
+    m, T = benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width*(n), height*(n))
+    
+    bruh[i]=m
+    bruh_2[i]=width*(n)
+    if i>0 :
+        R = bruh[i]/ bruh[i-1]
+        print(f"Ratio: {R:.4f}") 
+    print( width*(n), height*(n))
+    print(n)
+
+ 
+plt.plot(bruh_2, bruh, 'o-', linewidth=2, markersize=8)
+plt.xlabel('Image Width (pixels)')
+plt.ylabel('Time (ms)')
+plt.title('Mandelbrot Set Computation Time')
+plt.grid(True, alpha=0.3)
+plt.show()
+
+"""
 A = np.random.rand(10000, 10000)
-
 
 def row_sum(A):
     N= A.shape[0]
@@ -107,7 +130,7 @@ benchmark(col_sum, A_f)
 
 benchmark(row_sum, A_f)
 
-
+"""
 
 """
 iterations = mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height)
