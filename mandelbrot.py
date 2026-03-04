@@ -47,6 +47,7 @@ def mandelbrot_set_hybrid(x_min, x_max, y_min, y_max, width, height):
     return iterations
 
 
+
 def mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height):
     x_values = np.linspace(x_min, x_max, width)
     y_values = np.linspace(y_min, y_max, height)
@@ -84,6 +85,18 @@ def mandelbrot_naive_numba(xmin, xmax, ymin, ymax, width, height):
             result[i, j] = n
     return result
 
+
+@njit
+def mandelbrot_numba_typed(xmin, xmax, ymin, ymax, width, height, max_iter, dtype=np.float64):
+    x = np.linspace(xmin, xmax, width).astype(dtype)
+    y = np.linspace(ymin, ymax, height).astype(dtype)
+    result = np.zeros((height, width), dtype=np.int32)
+    
+    for i in range(height):
+        for j in range(width):
+            c = x[j] + 1j * y[i]
+            result[i, j] = mandelbrot_point_numba(c, max_iter)
+    return result
 
 def mandelbrot_set(x_min, x_max, y_min, y_max, width, height):
     x = np.linspace(x_min, x_max, width)
@@ -126,6 +139,37 @@ def bench(fn, *args, runs=5):
     return statistics.median(times)
 
 
+#warmups
+_ = mandelbrot_set_hybrid(-2, 1, -1.5, 1.5, 64, 64)
+_ = mandelbrot_naive_numba(-2, 1, -1.5, 1.5, 64, 64)
+
+
+for dtype in [np.float32, np.float64]:
+    t0 = time.perf_counter()
+    mandelbrot_numba_typed(-2, 1, -1.5, 1.5, 1024, 1024, max_iter,dtype=dtype) 
+    print(f"{dtype.__name__}: {time.perf_counter()-t0:.3f}s")
+
+
+r32 = mandelbrot_numba_typed(-2, 1, -1.5, 1.5, 1024, 1024, max_iter, dtype=np.float32)
+r64 = mandelbrot_numba_typed(-2, 1, -1.5, 1.5, 1024, 1024, max_iter,dtype=np.float64)
+
+
+# Create side-by-side comparison without colorbar
+fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+for ax, result, title in zip(axes, [r32, r64], ['float32', 'float64 (ref)']):
+    ax.imshow(result, cmap='hot')
+    ax.set_title(title)
+    ax.axis('off')
+
+plt.tight_layout()
+plt.savefig('precision_comparison.png', dpi=150)
+plt.show()
+
+
+print(f"Max diff float32 vs float64: {np.abs(r32 - r64).max()}")
+
+
+"""
 x_min, x_max = -2, 1      
 
 y_min, y_max = -1.5, 1.5 
@@ -136,16 +180,18 @@ mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height)
 
 #m, T = benchmark(mandelbrot_set_old, x_min, x_max, y_min, y_max, width, height)
 
-#warmups
-_ = mandelbrot_set_hybrid(-2, 1, -1.5, 1.5, 64, 64)
-_ = mandelbrot_naive_numba(-2, 1, -1.5, 1.5, 64, 64)
 
+# Assuming bench() is already defined as before (with 5 runs, median)
 
-t_hybrid = bench(mandelbrot_set_hybrid, -2, 1, -1.5, 1.5, 1024, 1024)
-t_full = bench(mandelbrot_naive_numba, -2, 1, -1.5, 1.5, 1024, 1024)
-print(f"Hybrid: {t_hybrid:.3f}s")
-print(f"Fully compiled: {t_full:.3f}s")
-print(f"Ratio: {t_hybrid/t_full:.1f}x")
+args = (-2, 1, -1.5, 1.5, 1024, 1024)
+t_naive = bench(mandelbrot_set_old, *args)
+t_numpy = bench(mandelbrot_set, *args)
+t_numba = bench(mandelbrot_naive_numba, *args)
+
+print(f"Naive: {t_naive:.3f}s")
+print(f"NumPy: {t_numpy:.3f}s   ({t_naive/t_numpy:.1f}x)")
+print(f"Numba: {t_numba:.3f}s   ({t_naive/t_numba:.1f}x)")
+"""
 
 
 """
