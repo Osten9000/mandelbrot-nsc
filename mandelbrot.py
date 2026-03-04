@@ -34,7 +34,7 @@ def mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height):
 
     for i in range(height):
         for j in range(width):
-            iterations[i, j] = mandelbrot_point(C[i, j])
+            iterations[i, j] = mandelbrot_point(C[i, j], max_iter)
             
     return iterations
 
@@ -51,13 +51,10 @@ def mandelbrot_set(x_min, x_max, y_min, y_max, width, height):
     M = np.zeros((height, width), dtype=int)  
     
     for n in range(max_iter):
-        # Boolean mask: points that haven't escaped yet
         mask = np.abs(Z) <= 2
         
-        # Update only unescaped points
         Z[mask] = Z[mask]**2 + C[mask]
         
-        # Increment iteration count for unescaped points
         M[mask] += 1
     return M
 
@@ -79,8 +76,9 @@ y_min, y_max = -1.5, 1.5
 
 width, height = 256, 256
 
-#m, T = benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
-L=[1,2,4,8,16]
+m, T = benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
+#L=[1,2,4,8,16]
+L=[1,2,4]
 
 bruh=np.zeros(len(L))
 bruh_2=np.zeros(len(L))
@@ -103,6 +101,9 @@ plt.ylabel('Time (ms)')
 plt.title('Mandelbrot Set Computation Time')
 plt.grid(True, alpha=0.3)
 plt.show()
+
+
+
 
 """
 A = np.random.rand(10000, 10000)
@@ -132,12 +133,11 @@ benchmark(row_sum, A_f)
 
 """
 
-"""
-iterations = mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height)
 
-elapsed = time.time() - start
-print(f"Computation took {elapsed:.3f} seconds")
-    
+"""
+
+iterations = mandelbrot_set(x_min, x_max, y_min, y_max, width, height)
+
 plt.figure(figsize=(10, 8))
 plt.imshow(iterations, extent=[x_min, x_max, y_min, y_max], 
            cmap='viridis', origin='lower')
@@ -146,5 +146,4 @@ plt.title('Mandelbrot Set')
 plt.xlabel('Re(c)')
 plt.ylabel('Im(c)')
 plt.show()
-
 """
