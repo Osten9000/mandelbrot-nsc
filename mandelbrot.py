@@ -17,7 +17,6 @@ def mandelbrot_point(c, max_iter):
     
     return max_iter  
 
-
 def mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height):
     x_values = np.linspace(x_min, x_max, width)
     y_values = np.linspace(y_min, y_max, height)
@@ -37,7 +36,6 @@ def mandelbrot_set_old(x_min, x_max, y_min, y_max, width, height):
             iterations[i, j] = mandelbrot_point(C[i, j], max_iter)
             
     return iterations
-
 
 def mandelbrot_set(x_min, x_max, y_min, y_max, width, height):
     x = np.linspace(x_min, x_max, width)
@@ -74,7 +72,12 @@ x_min, x_max = -2, 1
 
 y_min, y_max = -1.5, 1.5 
 
-width, height = 256, 256
+width, height = 512, 512
+
+m, T = benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
+
+
+"""
 
 m, T = benchmark(mandelbrot_set, x_min, x_max, y_min, y_max, width, height)
 #L=[1,2,4,8,16]
@@ -102,8 +105,7 @@ plt.title('Mandelbrot Set Computation Time')
 plt.grid(True, alpha=0.3)
 plt.show()
 
-
-
+"""
 
 """
 A = np.random.rand(10000, 10000)
