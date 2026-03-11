@@ -87,5 +87,46 @@ if __name__ == '__main__':
     plt.savefig(out, dpi=150)
     print(f'\nSaved: {out}')
     plt.show()
+ 
+# --- MP2 M3: benchmark (in __main__ block) ---
+if __name__ == '__main__':
     
-    
+    N, max_iter = 1024, 100
+    X_MIN, X_MAX, Y_MIN, Y_MAX = -2.5, 1.0, -1.25, 1.25
+
+    # Serial baseline (Numba already warm after M1 warm-up)
+    times = []
+    for _ in range(3):
+        t0 = time.perf_counter()
+        mandelbrot_serial(N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter)
+        times.append(time.perf_counter() - t0)
+    t_serial = statistics.median(times)
+
+    print(f"Serial time (median of 3): {t_serial:.3f}s")
+    print("\nParallel scaling:")
+    print("-" * 50)
+
+    for n_workers in range(1, os.cpu_count() + 1):
+        chunk_size = max(1, N // n_workers)
+        chunks, row = [], 0
+        while row < N:
+            end = min(row + chunk_size, N)
+            chunks.append((row, end, N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter))
+            row = end
+        
+        with Pool(processes=n_workers) as pool:
+            # Warm-up: Numba JIT in all workers
+            pool.map(_worker, chunks)
+            
+            # Timed runs
+            times = []
+            for _ in range(3):
+                t0 = time.perf_counter()
+                np.vstack(pool.map(_worker, chunks))
+                times.append(time.perf_counter() - t0)
+        
+        t_par = statistics.median(times)
+        speedup = t_serial / t_par
+        efficiency = (speedup / n_workers) * 100
+        print(f"{n_workers:2d} workers: {t_par:.3f}s, speedup={speedup:.2f}x, eff={efficiency:.0f}%")
+        
