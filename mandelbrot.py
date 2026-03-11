@@ -5,8 +5,7 @@ from numba import njit
 
 start = time.time()
 
-
-max_iter=100
+max_iter=101
 
 def mandelbrot_point(c, max_iter):
     z = 0 + 0j  # z_0
@@ -88,6 +87,32 @@ def mandelbrot_naive_numba(xmin, xmax, ymin, ymax, width, height):
 
 @njit
 def mandelbrot_numba_typed(xmin, xmax, ymin, ymax, width, height, max_iter, dtype=np.float64):
+    """
+    Parameters
+    ----------
+    xmin : TYPE
+        DESCRIPTION.
+    xmax : TYPE
+        DESCRIPTION.
+    ymin : TYPE
+        DESCRIPTION.
+    ymax : TYPE
+        DESCRIPTION.
+    width : TYPE
+        DESCRIPTION.
+    height : TYPE
+        DESCRIPTION.
+    max_iter : TYPE
+        DESCRIPTION.
+    dtype : TYPE, optional
+        DESCRIPTION. The default is np.float64.
+
+    Returns
+    -------
+    result : TYPE
+        DESCRIPTION.
+
+    """
     x = np.linspace(xmin, xmax, width).astype(dtype)
     y = np.linspace(ymin, ymax, height).astype(dtype)
     result = np.zeros((height, width), dtype=np.int32)
@@ -138,16 +163,20 @@ def bench(fn, *args, runs=5):
         times.append(time.perf_counter() - t0)
     return statistics.median(times)
 
-
+    
+"""
 #warmups
 _ = mandelbrot_set_hybrid(-2, 1, -1.5, 1.5, 64, 64)
-_ = mandelbrot_naive_numba(-2, 1, -1.5, 1.5, 64, 64)
+_ = mandelbrot_numba_typed(-2, 1, -1.5, 1.5, 64, 64, max_iter)
+
+
 
 
 for dtype in [np.float32, np.float64]:
     t0 = time.perf_counter()
     mandelbrot_numba_typed(-2, 1, -1.5, 1.5, 1024, 1024, max_iter,dtype=dtype) 
     print(f"{dtype.__name__}: {time.perf_counter()-t0:.3f}s")
+
 
 
 r32 = mandelbrot_numba_typed(-2, 1, -1.5, 1.5, 1024, 1024, max_iter, dtype=np.float32)
@@ -169,7 +198,7 @@ plt.show()
 print(f"Max diff float32 vs float64: {np.abs(r32 - r64).max()}")
 
 
-"""
+
 x_min, x_max = -2, 1      
 
 y_min, y_max = -1.5, 1.5 
