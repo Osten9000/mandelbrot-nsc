@@ -33,7 +33,10 @@ def mandelbrot_serial(N, x_min, x_max, y_min, y_max, max_iter=100):
 def _worker(args):
     return mandelbrot_chunk(*args)
 
-def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4):
+def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4, n_chunks=None, pool=None):
+    if n_chunks is None:
+       n_chunks = n_workers
+       
     chunk_size = max(1, N // n_workers)
     chunks, row = [], 0
     while row < N:
@@ -88,7 +91,6 @@ if __name__ == '__main__':
     print(f'\nSaved: {out}')
     plt.show()
  
-# --- MP2 M3: benchmark (in __main__ block) ---
 if __name__ == '__main__':
     
     N, max_iter = 1024, 100
