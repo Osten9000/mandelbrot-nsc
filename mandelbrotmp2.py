@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Mar 19 14:12:44 2026
+
+@author: phillycheese
+"""
+
 import numpy as np
 from numba import njit
 from multiprocessing import Pool
@@ -33,6 +41,8 @@ def mandelbrot_serial(N, x_min, x_max, y_min, y_max, max_iter=100):
 def _worker(args):
     return mandelbrot_chunk(*args)
 
+
+
 def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4, n_chunks=None, pool=None): 
     if n_chunks is None:
         n_chunks = n_workers 
@@ -44,16 +54,15 @@ def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4
         row_end = min(row + chunk_size, N)
         chunks.append((row, row_end, N, x_min, x_max, y_min, y_max, max_iter))
         row = row_end
-        if pool is not None: # caller manages Pool; skip startup + warm-up 
-            return np.vstack(pool.map(_worker, chunks))
-        
-        tiny = [(0, 8, 8, x_min, x_max, y_min, y_max, max_iter)] 
-        with Pool(processes=n_workers) as p:
-            p.map(_worker, tiny) # warm-up: load JIT cache in workers
-            parts = p.map(_worker, chunks) 
-        return np.vstack(parts)
+    
+    if pool is not None:
+        return np.vstack(pool.map(_worker, chunks))
+    
+    with Pool(processes=n_workers) as p:
+        parts = p.map(_worker, chunks) 
+    return np.vstack(parts)
 
-
+"""
 if __name__ == '__main__':
     # Parameters
     N = 1024
@@ -93,45 +102,104 @@ if __name__ == '__main__':
     plt.savefig(out, dpi=150)
     print(f'\nSaved: {out}')
     plt.show()
+"""
  
+
 if __name__ == '__main__':
+    # Parameters
+    N = 1024
+    X_MIN, X_MAX = -2.5, 1.0
+    Y_MIN, Y_MAX = -1.25, 1.25
+    MAX_ITER = 100
     
-    N, max_iter = 1024, 100
-    X_MIN, X_MAX, Y_MIN, Y_MAX = -2.5, 1.0, -1.25, 1.25
-
-    # Serial baseline (Numba already warm after M1 warm-up)
-    times = []
-    for _ in range(3):
+    # Your optimal n_workers from previous analysis
+    OPTIMAL_WORKERS = 8
+    
+    print("=" * 60)
+    print("MANDELBROT: SWEEPING N_CHUNKS WITH FIXED N_WORKERS =", OPTIMAL_WORKERS)
+    print("=" * 60)
+    
+    # First, measure serial time (T1) for LIF calculation
+    print("\nMeasuring serial baseline time (T1)...")
+    # Warm-up serial
+    mandelbrot_serial(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER)
+    
+    serial_times = []
+    for i in range(3):
         t0 = time.perf_counter()
-        mandelbrot_serial(N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter)
-        times.append(time.perf_counter() - t0)
-    t_serial = statistics.median(times)
-
-    print(f"Serial time (median of 3): {t_serial:.3f}s")
-    print("\nParallel scaling:")
-    print("-" * 50)
-
-    for n_workers in range(1, os.cpu_count() + 1):
-        chunk_size = max(1, N // n_workers)
-        chunks, row = [], 0
-        while row < N:
-            end = min(row + chunk_size, N)
-            chunks.append((row, end, N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter))
-            row = end
+        mandelbrot_serial(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER)
+        serial_times.append(time.perf_counter() - t0)
+    
+    T1 = statistics.median(serial_times)
+    print(f"Serial time (T1) = {T1:.4f} seconds (median of 3 runs)")
+    
+    # Test different n_chunks configurations
+    chunk_factors = [1, 2, 4, 8, 16]
+    n_chunks_values = [OPTIMAL_WORKERS * factor for factor in chunk_factors]
+    
+    results = []
+    baseline_time = None
+    
+    # Create a SINGLE Pool and reuse it for all configurations
+    print("\nCreating Pool with", OPTIMAL_WORKERS, "workers...")
+    with Pool(processes=OPTIMAL_WORKERS) as pool:
+        # Warm up the pool once with a tiny computation
+        tiny_chunk = [(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER)]
+        pool.map(_worker, tiny_chunk)
+        print("Pool warm-up complete\n")
         
-        with Pool(processes=n_workers) as pool:
-            # Warm-up: Numba JIT in all workers
-            pool.map(_worker, chunks)
+        for factor, n_chunks in zip(chunk_factors, n_chunks_values):
+            print(f"Testing n_chunks = {n_chunks} ({factor}× workers)...", end="", flush=True)
             
-            # Timed runs
+            # Warm-up run for this chunk configuration (not timed)
+            _ = mandelbrot_parallel(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER, 
+                                    n_workers=OPTIMAL_WORKERS, n_chunks=n_chunks, pool=pool)
+            
+            # Timed runs (3 repetitions)
             times = []
-            for _ in range(3):
+            for run in range(3):
                 t0 = time.perf_counter()
-                np.vstack(pool.map(_worker, chunks))
+                _ = mandelbrot_parallel(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER, 
+                                       n_workers=OPTIMAL_WORKERS, n_chunks=n_chunks, pool=pool)
                 times.append(time.perf_counter() - t0)
-        
-        t_par = statistics.median(times)
-        speedup = t_serial / t_par
-        efficiency = (speedup / n_workers) * 100
-        print(f"{n_workers:2d} workers: {t_par:.3f}s, speedup={speedup:.2f}x, eff={efficiency:.0f}%")
-        
+            
+            Tp = statistics.median(times)
+            print(f" {Tp:.4f}s")
+            
+            # Calculate vs. 1×
+            if factor == 1:
+                baseline_time = Tp
+                vs_1x = "baseline"
+            else:
+                vs_1x = f"{Tp/baseline_time:.2f}×"
+            
+            # Calculate LIF
+            LIF = OPTIMAL_WORKERS * Tp / T1 - 1
+            
+            results.append({
+                'n_chunks': n_chunks,
+                'factor': f"{factor}×",
+                'time': Tp,
+                'vs_1x': vs_1x,
+                'LIF': LIF
+            })
+    
+    # Print the formatted table
+    print("\n" + "=" * 60)
+    print("RESULTS TABLE")
+    print("=" * 60)
+    print(f"\nFixed n_workers = {OPTIMAL_WORKERS} (your L04 optimum)")
+    print("\n| n_chunks | time (s) | vs. 1×    | LIF      |")
+    print("|----------|----------|-----------|----------|")
+    
+    for r in results:
+        print(f"| {r['n_chunks']:<8} | {r['time']:.4f}   | {r['vs_1x']:<9} | {r['LIF']:.4f}   |")
+    
+    # Find sweet spot (minimum LIF)
+    sweet_spot = min(results, key=lambda x: x['LIF'])
+    
+    print("\n" + "=" * 60)
+    print(f"✓ Sweet spot: n_chunks = {sweet_spot['n_chunks']} ({sweet_spot['factor']})")
+    print(f"  Time: {sweet_spot['time']:.4f}s, LIF: {sweet_spot['LIF']:.4f}")
+    print("=" * 60)
+    
