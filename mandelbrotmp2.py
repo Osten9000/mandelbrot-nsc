@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 19 14:12:44 2026
-
-@author: phillycheese
-"""
-
 import numpy as np
 from numba import njit
 from multiprocessing import Pool
@@ -41,165 +33,59 @@ def mandelbrot_serial(N, x_min, x_max, y_min, y_max, max_iter=100):
 def _worker(args):
     return mandelbrot_chunk(*args)
 
-
-
-def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4, n_chunks=None, pool=None): 
+def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4, n_chunks=None, pool=None):
     if n_chunks is None:
-        n_chunks = n_workers 
+        n_chunks = n_workers
         
-    chunk_size = max(1, N // n_chunks) 
+    # Calculate chunks based on n_chunks (not chunk_size directly)
+    chunks = []
+    rows_per_chunk = N / n_chunks
     
-    chunks, row = [], 0
-    while row < N:
-        row_end = min(row + chunk_size, N)
-        chunks.append((row, row_end, N, x_min, x_max, y_min, y_max, max_iter))
-        row = row_end
+    # Create exactly n_chunks chunks
+    for i in range(n_chunks):
+        row_start = int(i * rows_per_chunk)
+        row_end = int((i + 1) * rows_per_chunk) if i < n_chunks - 1 else N
+        if row_end > row_start:  # Ensure non-empty chunk
+            chunks.append((row_start, row_end, N, x_min, x_max, y_min, y_max, max_iter))
     
-    if pool is not None:
+    if pool is not None:  # caller manages Pool; skip startup + warm-up
         return np.vstack(pool.map(_worker, chunks))
     
+    tiny = [(0, 8, 8, x_min, x_max, y_min, y_max, max_iter)]
     with Pool(processes=n_workers) as p:
-        parts = p.map(_worker, chunks) 
+        p.map(_worker, tiny)  # warm-up: load JIT cache in workers
+        parts = p.map(_worker, chunks)
     return np.vstack(parts)
 
-"""
-if __name__ == '__main__':
-    # Parameters
-    N = 1024
-    x_min, x_max = -2.5, 1.0
-    y_min, y_max = -1.25, 1.25
-    max_iter = 100
-    n_workers = 4
-    
-    print("=" * 50)
-    print("MANDELBROT PERFORMANCE COMPARISON")
-    print("=" * 50)
-    
-    # Run parallel version
-    print(f"\nRunning parallel version with {n_workers} workers...")
-    t0 = time.perf_counter()
-    parallel_result = mandelbrot_parallel(N, x_min, x_max, y_min, y_max, 
-                                          max_iter, n_workers=n_workers)
-    t_parallel = time.perf_counter() - t0
-    print(f"Parallel computation took: {t_parallel:.3f} seconds")
-    
-    # Run serial version
-    print("\nRunning serial version...")
-    t0 = time.perf_counter()
-    serial_result = mandelbrot_serial(N, x_min, x_max, y_min, y_max, max_iter)
-    t_serial = time.perf_counter() - t0
-    print(f"Serial computation took: {t_serial:.3f} seconds")
-    
-    
-    # Visualize the result (using parallel_result)
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.imshow(parallel_result, extent=[-2.5, 1.0, -1.25, 1.25],
-              cmap='inferno', origin='lower', aspect='equal')
-    ax.set_xlabel('Re(c)')
-    ax.set_ylabel('Im(c)')
-    ax.set_title(f'Mandelbrot Set (Parallel: {t_parallel:.3f}s, Serial: {t_serial:.3f}s)')
-    out = Path(__file__).parent / 'mandelbrot.png'
-    plt.savefig(out, dpi=150)
-    print(f'\nSaved: {out}')
-    plt.show()
-"""
- 
 
-if __name__ == '__main__':
-    # Parameters
-    N = 1024
-    X_MIN, X_MAX = -2.5, 1.0
-    Y_MIN, Y_MAX = -1.25, 1.25
-    MAX_ITER = 100
-    
-    # Your optimal n_workers from previous analysis
-    OPTIMAL_WORKERS = 8
-    
-    print("=" * 60)
-    print("MANDELBROT: SWEEPING N_CHUNKS WITH FIXED N_WORKERS =", OPTIMAL_WORKERS)
-    print("=" * 60)
-    
-    # First, measure serial time (T1) for LIF calculation
-    print("\nMeasuring serial baseline time (T1)...")
-    # Warm-up serial
-    mandelbrot_serial(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER)
-    
-    serial_times = []
-    for i in range(3):
+if __name__ == "__main__":
+    N, max_iter = 1024, 100
+    n_workers = 8    # adjust to your L04 optimum
+    X_MIN, X_MAX, Y_MIN, Y_MAX = -2.5, 1.0, -1.25, 1.25
+
+    mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter)   # warm up JIT
+
+    # Serial baseline
+    times = []
+    for _ in range(3):
         t0 = time.perf_counter()
-        mandelbrot_serial(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER)
-        serial_times.append(time.perf_counter() - t0)
-    
-    T1 = statistics.median(serial_times)
-    print(f"Serial time (T1) = {T1:.4f} seconds (median of 3 runs)")
-    
-    # Test different n_chunks configurations
-    chunk_factors = [1, 2, 4, 8, 16]
-    n_chunks_values = [OPTIMAL_WORKERS * factor for factor in chunk_factors]
-    
-    results = []
-    baseline_time = None
-    
-    # Create a SINGLE Pool and reuse it for all configurations
-    print("\nCreating Pool with", OPTIMAL_WORKERS, "workers...")
-    with Pool(processes=OPTIMAL_WORKERS) as pool:
-        # Warm up the pool once with a tiny computation
-        tiny_chunk = [(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER)]
-        pool.map(_worker, tiny_chunk)
-        print("Pool warm-up complete\n")
-        
-        for factor, n_chunks in zip(chunk_factors, n_chunks_values):
-            print(f"Testing n_chunks = {n_chunks} ({factor}× workers)...", end="", flush=True)
-            
-            # Warm-up run for this chunk configuration (not timed)
-            _ = mandelbrot_parallel(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER, 
-                                    n_workers=OPTIMAL_WORKERS, n_chunks=n_chunks, pool=pool)
-            
-            # Timed runs (3 repetitions)
+        mandelbrot_chunk(0, N, N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter)
+        times.append(time.perf_counter() - t0)
+    t_serial = statistics.median(times)
+    print(f"Serial: {t_serial:.3f}s")
+
+    # Chunk-count sweep (M2): one Pool per config
+    tiny = [(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter)]
+    for mult in [1, 2, 4, 8, 16]:
+        n_chunks = mult * n_workers
+        with Pool(processes=n_workers) as pool:
+            pool.map(_worker, tiny)    # warm-up: load JIT cache in workers
             times = []
-            for run in range(3):
+            for _ in range(3):
                 t0 = time.perf_counter()
-                _ = mandelbrot_parallel(N, X_MIN, X_MAX, Y_MIN, Y_MAX, MAX_ITER, 
-                                       n_workers=OPTIMAL_WORKERS, n_chunks=n_chunks, pool=pool)
+                mandelbrot_parallel(N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter,
+                                    n_workers=n_workers, n_chunks=n_chunks, pool=pool)
                 times.append(time.perf_counter() - t0)
-            
-            Tp = statistics.median(times)
-            print(f" {Tp:.4f}s")
-            
-            # Calculate vs. 1×
-            if factor == 1:
-                baseline_time = Tp
-                vs_1x = "baseline"
-            else:
-                vs_1x = f"{Tp/baseline_time:.2f}×"
-            
-            # Calculate LIF
-            LIF = OPTIMAL_WORKERS * Tp / T1 - 1
-            
-            results.append({
-                'n_chunks': n_chunks,
-                'factor': f"{factor}×",
-                'time': Tp,
-                'vs_1x': vs_1x,
-                'LIF': LIF
-            })
-    
-    # Print the formatted table
-    print("\n" + "=" * 60)
-    print("RESULTS TABLE")
-    print("=" * 60)
-    print(f"\nFixed n_workers = {OPTIMAL_WORKERS} (your L04 optimum)")
-    print("\n| n_chunks | time (s) | vs. 1×    | LIF      |")
-    print("|----------|----------|-----------|----------|")
-    
-    for r in results:
-        print(f"| {r['n_chunks']:<8} | {r['time']:.4f}   | {r['vs_1x']:<9} | {r['LIF']:.4f}   |")
-    
-    # Find sweet spot (minimum LIF)
-    sweet_spot = min(results, key=lambda x: x['LIF'])
-    
-    print("\n" + "=" * 60)
-    print(f"✓ Sweet spot: n_chunks = {sweet_spot['n_chunks']} ({sweet_spot['factor']})")
-    print(f"  Time: {sweet_spot['time']:.4f}s, LIF: {sweet_spot['LIF']:.4f}")
-    print("=" * 60)
-    
+            t_par = statistics.median(times)
+            lif = n_workers * t_par / t_serial - 1
+            print(f"{n_chunks:4d} chunks {t_par:.3f}s {t_serial/t_par:.1f}x LIF={lif:.2f}")
