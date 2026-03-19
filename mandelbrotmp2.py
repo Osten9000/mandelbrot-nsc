@@ -33,22 +33,25 @@ def mandelbrot_serial(N, x_min, x_max, y_min, y_max, max_iter=100):
 def _worker(args):
     return mandelbrot_chunk(*args)
 
-def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4, n_chunks=None, pool=None):
+def mandelbrot_parallel(N, x_min, x_max, y_min, y_max, max_iter=100, n_workers=4, n_chunks=None, pool=None): 
     if n_chunks is None:
-       n_chunks = n_workers
-       
-    chunk_size = max(1, N // n_workers)
+        n_chunks = n_workers 
+        
+    chunk_size = max(1, N // n_chunks) 
+    
     chunks, row = [], 0
     while row < N:
         row_end = min(row + chunk_size, N)
         chunks.append((row, row_end, N, x_min, x_max, y_min, y_max, max_iter))
         row = row_end
-
-    with Pool(processes=n_workers) as pool:
-        pool.map(_worker, chunks)  # un-timed warm-up: Numba JIT in workers
-        parts = pool.map(_worker, chunks)
-
-    return np.vstack(parts)
+        if pool is not None: # caller manages Pool; skip startup + warm-up 
+            return np.vstack(pool.map(_worker, chunks))
+        
+        tiny = [(0, 8, 8, x_min, x_max, y_min, y_max, max_iter)] 
+        with Pool(processes=n_workers) as p:
+            p.map(_worker, tiny) # warm-up: load JIT cache in workers
+            parts = p.map(_worker, chunks) 
+        return np.vstack(parts)
 
 
 if __name__ == '__main__':
