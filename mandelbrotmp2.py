@@ -75,7 +75,7 @@ def mandelbrot_dask(N, x_min, x_max, y_min, y_max, max_iter=100, n_chunks=32):
     return np.vstack(parts)
 
 if __name__ == "__main__":
-    N, max_iter = 4096, 100
+    N, max_iter = 8192, 100
     n_workers = 8
     X_MIN, X_MAX, Y_MIN, Y_MAX = -2.5, 1.0, -1.25, 1.25
 
