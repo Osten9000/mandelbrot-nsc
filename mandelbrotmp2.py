@@ -106,7 +106,8 @@ if __name__ == "__main__":
     client.run(lambda: mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, 10))
     
     # Sweep over chunk sizes
-    n_chunks_values = [8, 16, 32, 64, 128, 256, 512]
+    #n_chunks_values = [8, 16, 32, 64, 128, 256, 512]
+    n_chunks_values = [32]
     times_list = []
     lif_list = []
     
