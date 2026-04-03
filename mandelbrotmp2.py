@@ -92,8 +92,11 @@ if __name__ == "__main__":
     print(f"Serial (T₁): {t_serial:.3f}s")
 
     # Create cluster for sweep (keep open for all measurements)
-    cluster = LocalCluster(n_workers=n_workers, threads_per_worker=1)
-    client = Client(cluster)
+    #cluster = LocalCluster(n_workers=n_workers, threads_per_worker=1)
+    #client = Client(cluster)
+    
+    # Connect to your existing remote scheduler
+    client = Client("tcp://10.92.0.39:8786")
     
     # Warm up all workers
     client.run(lambda: mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, 10))
@@ -141,7 +144,7 @@ if __name__ == "__main__":
     plt.savefig('dask_chunk_sweep.png', dpi=150)
     plt.show()
     
-    client.close()
+    #client.close()
     cluster.close()
     
 """
