@@ -97,6 +97,7 @@ if __name__ == "__main__":
     
     # Connect to your existing remote scheduler
     client = Client("tcp://10.92.0.39:8786")
+    print(client)
     
     # Warm up all workers
     client.run(lambda: mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, 10))
