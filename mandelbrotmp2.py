@@ -145,8 +145,8 @@ if __name__ == "__main__":
     plt.savefig('dask_chunk_sweep.png', dpi=150)
     plt.show()
     
-    #client.close()
-    cluster.close()
+    client.close()
+    #cluster.close()
     
 """
 if __name__ == '__main__':
