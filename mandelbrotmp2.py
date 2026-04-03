@@ -82,25 +82,14 @@ if __name__ == "__main__":
     # Warm up JIT locally
     mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter)
 
-    # Measure serial baseline (T₁) with 1 worker
-    cluster_serial = LocalCluster(n_workers=1, threads_per_worker=1)
-    client_serial = Client(cluster_serial)
-    
-    # Warm up worker
-    client_serial.run(lambda: mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, 10))
-    
+    # Measure serial baseline (T₁) - NOT using Dask
     times = []
     for _ in range(3):
         t0 = time.perf_counter()
-        mandelbrot_dask(N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter, n_chunks=32)
+        mandelbrot_serial(N, X_MIN, X_MAX, Y_MIN, Y_MAX, max_iter)
         times.append(time.perf_counter() - t0)
     t_serial = statistics.median(times)
-    print(f"Serial (1 worker): {t_serial:.3f}s")
-    
-    # Clean shutdown with delay
-    client_serial.close()
-    cluster_serial.close()
-    time.sleep(2)  # Give workers time to shut down
+    print(f"Serial (T₁): {t_serial:.3f}s")
 
     # Create cluster for sweep (keep open for all measurements)
     cluster = LocalCluster(n_workers=n_workers, threads_per_worker=1)
@@ -110,10 +99,14 @@ if __name__ == "__main__":
     client.run(lambda: mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, 10))
     
     # Sweep over chunk sizes
-    print("\nn_chunks | time (s) | vs 1x | LIF")
-    print("-" * 55)
+    n_chunks_values = [8, 16, 32, 64, 128, 256, 512]
+    times_list = []
+    lif_list = []
     
-    for n_chunks in [8, 16, 32, 64, 128, 256, 512]:
+    print("\nn_chunks | time (s) | speedup | LIF")
+    print("-" * 45)
+    
+    for n_chunks in n_chunks_values:
         times = []
         for _ in range(3):
             t0 = time.perf_counter()
@@ -124,7 +117,29 @@ if __name__ == "__main__":
         speedup = t_serial / t_par
         lif = n_workers * t_par / t_serial - 1
         
+        times_list.append(t_par)
+        lif_list.append(lif)
+        
         print(f"{n_chunks:8d} | {t_par:7.3f} | {speedup:6.1f}x | {lif:6.2f}")
+    
+    # Find and record optimal values
+    optimal_idx = times_list.index(min(times_list))
+    n_chunks_optimal = n_chunks_values[optimal_idx]
+    t_min = min(times_list)
+    lif_min = lif_list[optimal_idx]
+    
+    print(f"\nOptimal: n_chunks={n_chunks_optimal}, t_min={t_min:.3f}s, LIF_min={lif_min:.2f}")
+    
+    # Plot wall time vs n_chunks (log scale)
+    plt.figure()
+    plt.plot(n_chunks_values, times_list, 'o-', linewidth=2, markersize=8)
+    plt.xscale('log')
+    plt.xlabel('Number of chunks (n_chunks)')
+    plt.ylabel('Wall time (seconds)')
+    plt.title('Dask Performance: Wall Time vs Number of Chunks')
+    plt.grid(True, alpha=0.3)
+    plt.savefig('dask_chunk_sweep.png', dpi=150)
+    plt.show()
     
     client.close()
     cluster.close()
