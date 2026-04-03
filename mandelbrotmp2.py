@@ -99,6 +99,9 @@ if __name__ == "__main__":
     client = Client("tcp://10.92.0.39:8786")
     print(client)
     
+    versions = client.run(lambda: __import__('dask').__version__)
+    print(versions)   # all values must be identical
+    
     # Warm up all workers
     client.run(lambda: mandelbrot_chunk(0, 8, 8, X_MIN, X_MAX, Y_MIN, Y_MAX, 10))
     
