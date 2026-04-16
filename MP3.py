@@ -6,8 +6,13 @@ Created on Thu Apr 16 12:44:08 2026
 @author: phillycheese
 """
 
+"""
+L08 m1
+
 import numpy as np
 import matplotlib.pyplot as plt
+
+
 
 N, MAX_ITER, TAU = 512, 1000, 0.1
 x = np.linspace(-0.7530, -0.7490, N)
@@ -63,4 +68,50 @@ ax2.set_ylabel('Imaginary')
 plt.colorbar(im2, ax=ax2, label='Escape iteration')
 
 plt.tight_layout()
+plt.savefig('mandelbrot_divergence_comparison.png', dpi=300, bbox_inches='tight')
+plt.show()
+
+"""
+
+"""
+L08 m1
+"""
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+
+N, MAX_ITER = 512, 1000
+x = np.linspace(-0.7530, -0.7490, N)
+y = np.linspace(0.0990, 0.1030, N)
+C = (x[np.newaxis, :] + 1j * y[:, np.newaxis]).astype(np.complex128)
+eps32 = float(np.finfo(np.float32).eps)
+delta = np.maximum(eps32 * np.abs(C), 1e-10)
+
+def escape_count(C, max_iter):
+    z = np.zeros_like(C)
+    cnt = np.full(C.shape, max_iter, dtype=np.int32)
+    esc = np.zeros(C.shape, dtype=bool)
+    for k in range(max_iter):
+        z[~esc] = z[~esc]**2 + C[~esc]
+        newly = ~esc & (np.abs(z) > 2.0)
+        cnt[newly] = k
+        esc[newly] = True
+    return cnt
+
+n_base = escape_count(C, MAX_ITER).astype(float)
+n_perturb = escape_count(C + delta, MAX_ITER).astype(float)
+dn = np.abs(n_base - n_perturb)
+kappa = np.where(n_base > 0, dn / (eps32 * n_base), np.nan)
+
+cmap_k = plt.cm.hot.copy()
+cmap_k.set_bad('0.25')
+vmax = np.nanpercentile(kappa, 99)
+
+plt.imshow(kappa, cmap=cmap_k, origin='lower',
+    extent=[-0.7530, -0.7490, 0.0990, 0.1030],
+    norm=LogNorm(vmin=1, vmax=vmax))
+#plt.colorbar(label=r'$\kappa$ (log scale)')
+plt.colorbar(label=r'$\kappa(c)$ (log scale, $\kappa \geq 1$)')
+plt.title(r'Condition number approx $\kappa$')
+plt.savefig('mandelbrot_condition_number.png', dpi=300, bbox_inches='tight')
 plt.show()
