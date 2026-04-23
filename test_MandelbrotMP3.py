@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from mandelbrot import mandelbrot_set
+from MandelbrotMP3 import mandelbrot_set 
 
 
 # ---------------------------------------------------------------------------
