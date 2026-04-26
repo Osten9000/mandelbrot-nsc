@@ -102,3 +102,5 @@ queue.finish()
 print(f"GPU {N}x{N}: {elapsed*1e3:.1f} ms")
 plt.imshow(image, cmap='hot', origin='lower'); plt.axis('off')
 plt.savefig("mandelbrot_gpu.png", dpi=150, bbox_inches='tight')
+
+
